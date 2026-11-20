@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter_teleop/input/gamepad_input.dart';
-import 'package:flutter_teleop/l10n.dart';
-import 'package:flutter_teleop/protocol/messages.dart';
-import 'package:flutter_teleop/protocol/streams.dart';
-import 'package:flutter_teleop/robot_actions.dart';
+import 'package:x30_controller/input/gamepad_input.dart';
+import 'package:x30_controller/l10n.dart';
+import 'package:x30_controller/protocol/messages.dart';
+import 'package:x30_controller/protocol/streams.dart';
+import 'package:x30_controller/robot_actions.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// One datagram as robot_bridge/protocol.py chunk() packs it.

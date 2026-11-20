@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_teleop/protocol/messages.dart';
-import 'package:flutter_teleop/theme.dart';
-import 'package:flutter_teleop/widgets/trip_panel.dart';
+import 'package:x30_controller/protocol/messages.dart';
+import 'package:x30_controller/theme.dart';
+import 'package:x30_controller/widgets/trip_panel.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _trip = TripStatus(

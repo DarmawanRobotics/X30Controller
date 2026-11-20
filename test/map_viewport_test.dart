@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter_teleop/widgets/map_view.dart';
+import 'package:x30_controller/widgets/map_view.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

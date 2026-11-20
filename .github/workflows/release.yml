@@ -58,7 +58,7 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           flutter build apk --release
-          apk="pashupati-controller-${{ steps.version.outputs.version }}.apk"
+          apk="x30-controller-${{ steps.version.outputs.version }}.apk"
           cp build/app/outputs/flutter-apk/app-release.apk "$apk"
           sha256sum "$apk" > "$apk.sha256"
           rm -f "$RUNNER_TEMP/release.jks"
@@ -69,10 +69,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          files=(pashupati-controller-"$VERSION".apk pashupati-controller-"$VERSION".apk.sha256)
+          files=(x30-controller-"$VERSION".apk x30-controller-"$VERSION".apk.sha256)
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
           else
             gh release create "$GITHUB_REF_NAME" "${files[@]}" \
-              --title "PashupatiController $VERSION" --generate-notes
+              --title "X30Controller $VERSION" --generate-notes
           fi

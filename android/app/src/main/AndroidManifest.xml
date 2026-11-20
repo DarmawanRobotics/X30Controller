@@ -6,11 +6,11 @@
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
 
     <application
-        android:label="Pashupati"
+        android:label="X30"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
-            android:name="com.darmawanrobotics.flutter_teleop.MainActivity"
+            android:name="com.darmawanrobotics.x30_controller.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""

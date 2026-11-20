@@ -1,7 +1,7 @@
-name: flutter_teleop
-description: Handheld teleop for Pashupati robots (Retroid Pocket and other Android devices).
+name: x30_controller
+description: Handheld for the Deep Robotics X30 (x30_ros): a Skydroid H12 or any Android.
 publish_to: none
-version: 2.8.0+31
+version: 1.0.0+1
 
 environment:
   sdk: ^3.9.0

@@ -106,5 +106,5 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       - uses: actions/upload-artifact@v4
         with:
-          name: pashupati-controller-apk
+          name: x30-controller-apk
           path: build/app/outputs/flutter-apk/app-release.apk

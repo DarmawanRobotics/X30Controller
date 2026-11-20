@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_teleop/protocol/messages.dart';
-import 'package:flutter_teleop/theme.dart';
-import 'package:flutter_teleop/widgets/glance.dart';
+import 'package:x30_controller/protocol/messages.dart';
+import 'package:x30_controller/theme.dart';
+import 'package:x30_controller/widgets/glance.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Future<void> show(WidgetTester tester, Map<String, dynamic> state, {bool showLoad = true}) {

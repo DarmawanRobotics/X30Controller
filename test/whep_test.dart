@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_teleop/net/whep.dart';
+import 'package:x30_controller/net/whep.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A stand-in for the robot's MediaMTX WHEP endpoint; [reply] answers each request.

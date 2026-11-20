@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_teleop/net/teleop_client.dart';
-import 'package:flutter_teleop/protocol/messages.dart';
-import 'package:flutter_teleop/screens/patrol_screen.dart';
-import 'package:flutter_teleop/theme.dart';
+import 'package:x30_controller/net/teleop_client.dart';
+import 'package:x30_controller/protocol/messages.dart';
+import 'package:x30_controller/screens/patrol_screen.dart';
+import 'package:x30_controller/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The robot's answers to the page's commands, and every command the page sent.

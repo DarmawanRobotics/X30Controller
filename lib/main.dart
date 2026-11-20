@@ -34,7 +34,7 @@ class TeleopApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Pashupati Teleop',
+      title: 'X30 Controller',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
       home: ConnectScreen(services: services),

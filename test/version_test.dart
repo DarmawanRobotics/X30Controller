@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter_teleop/screens/connect_screen.dart';
+import 'package:x30_controller/screens/connect_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
