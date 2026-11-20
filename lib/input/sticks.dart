@@ -49,8 +49,7 @@ class Sticks extends ChangeNotifier {
   }
 
   /// Something can drive: the H12's sticks, a gamepad, or the touch sticks when shown.
-  bool any(AppSettings settings) =>
-      skydroid.live || gamepad.connected || settings.touchSticks;
+  bool any(AppSettings settings) => skydroid.live || gamepad.connected || settings.touchSticks;
 
   /// The command of the live source now.
   StickReading read(AppSettings settings) {

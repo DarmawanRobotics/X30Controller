@@ -19,7 +19,12 @@ class SkydroidInput extends ChangeNotifier {
   static const pressedAbove = 1700; // a key down reads about 1950
 
   /// The keys on the channels of the H12 (1-based): A 5, B 6, C 9, D 10.
-  static const keyChannels = {SkydroidKey.a: 5, SkydroidKey.b: 6, SkydroidKey.c: 9, SkydroidKey.d: 10};
+  static const keyChannels = {
+    SkydroidKey.a: 5,
+    SkydroidKey.b: 6,
+    SkydroidKey.c: 9,
+    SkydroidKey.d: 10,
+  };
 
   /// The three-position switch E (channel 7): the speed level.
   static const levelChannel = 7;

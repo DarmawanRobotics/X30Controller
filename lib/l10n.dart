@@ -282,7 +282,8 @@ const _en = <String, String>{
   'h12_right': 'Strafe right',
   'h12_turn': 'Turn right',
   'h12_invert': 'Reverse',
-  'help_h12': 'H12: left stick drives, right stick turns, A AUTO / REMOTE, B STOP, C / D speed, '
+  'help_h12':
+      'H12: left stick drives, right stick turns, A AUTO / REMOTE, B STOP, C / D speed, '
       'switch E speed level',
 };
 
@@ -546,6 +547,7 @@ const _id = <String, String>{
   'h12_right': 'Geser kanan',
   'h12_turn': 'Putar kanan',
   'h12_invert': 'Balik',
-  'help_h12': 'H12: stik kiri jalan, stik kanan putar, A AUTO / REMOTE, B STOP, C / D kecepatan, '
+  'help_h12':
+      'H12: stik kiri jalan, stik kanan putar, A AUTO / REMOTE, B STOP, C / D kecepatan, '
       'switch E level kecepatan',
 };
