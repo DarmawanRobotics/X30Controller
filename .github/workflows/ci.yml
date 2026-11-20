@@ -1,9 +1,7 @@
 name: ci
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  push: # every branch: a PR shows the checks of its branch
   workflow_dispatch:
 
 jobs:
