@@ -121,6 +121,9 @@ class TeleopClient extends ChangeNotifier {
   bool lidarEnabled = true;
   double cameraFps = 8;
 
+  /// The camera the robot streams (the X30's `visible` or `thermal`); empty: its default.
+  String cameraName = '';
+
   /// The WebRTC video plays (or is starting): the robot keeps sending the tags for it.
   bool videoEnabled = false;
 
@@ -256,11 +259,12 @@ class TeleopClient extends ChangeNotifier {
   void clearTrail() => trail.clear();
 
   /// Turns the JPEG camera, the lidar and the WebRTC video flag on or off; sets the camera rate.
-  void setStreams({bool? camera, bool? lidar, bool? video, double? fps}) {
+  void setStreams({bool? camera, bool? lidar, bool? video, double? fps, String? cameraName}) {
     cameraEnabled = camera ?? cameraEnabled;
     lidarEnabled = lidar ?? lidarEnabled;
     videoEnabled = video ?? videoEnabled;
     cameraFps = fps ?? cameraFps;
+    this.cameraName = cameraName ?? this.cameraName;
     if (!cameraEnabled) cameraFrame.value = null;
     if (!lidarEnabled) lidarPoints.value = null;
     if (isLive) _send({'t': 'streams', ..._streams()});
@@ -274,6 +278,7 @@ class TeleopClient extends ChangeNotifier {
     'lidar': lidarEnabled,
     'video': videoEnabled,
     'camera_fps': cameraFps,
+    if (cameraName.isNotEmpty) 'camera_name': cameraName, // the X30's visible or thermal
   };
 
   Future<InternetAddress> _resolve(String host) async {

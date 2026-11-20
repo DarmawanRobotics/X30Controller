@@ -81,6 +81,17 @@ const _known = <RobotAction>[
     'Give to remote',
     confirm: true,
   ),
+  // the X30 (x30_driver): stepping in place before it walks, its gaits
+  RobotAction('start_stepping', Icons.directions_walk_rounded, 'Mulai melangkah', 'Start stepping'),
+  RobotAction('stop_stepping', Icons.front_hand_rounded, 'Berhenti melangkah', 'Stop stepping'),
+  RobotAction('torque_control', Icons.fitness_center_rounded, 'Mode torsi', 'Torque stand'),
+  RobotAction('gait_walk', Icons.hiking_rounded, 'Gait jalan', 'Walk gait'),
+  RobotAction('gait_off_road', Icons.terrain_rounded, 'Gait off-road', 'Off-road gait'),
+  RobotAction('gait_slope', Icons.trending_up_rounded, 'Gait tanjakan', 'Slope gait'),
+  RobotAction('gait_stair', Icons.stairs_rounded, 'Gait tangga', 'Stair gait', confirm: true),
+  RobotAction('gait_silent', Icons.volume_off_rounded, 'Gait senyap', 'Silent gait'),
+  RobotAction('height_normal', Icons.height_rounded, 'Tinggi normal', 'Normal height'),
+  RobotAction('height_crawl', Icons.vertical_align_bottom_rounded, 'Rendah', 'Crawl height'),
   RobotAction(
     'emergency_stop',
     Icons.dangerous_rounded,

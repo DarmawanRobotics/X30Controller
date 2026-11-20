@@ -1,4 +1,5 @@
-/// JSON messages of the Pashupati teleop protocol v1 (robot_bridge/PROTOCOL.md).
+/// JSON messages of the teleop protocol v1 (Pashupati's, with the X30's own parts: x30_ros
+/// x30_bridge/PROTOCOL.md).
 library;
 
 /// Commands that belong to Pashupati itself; everything else in `welcome.commands` is the robot's.
@@ -24,6 +25,12 @@ const pashupatiCommands = {
   'people_set',
   'nav_speed',
   'trip_reset',
+  // the X30's (x30_bridge): not the robot driver's actions
+  'dock',
+  'undock',
+  'recorder_start',
+  'recorder_stop',
+  'inspect',
 };
 
 double? _num(Object? value) => value is num && value.isFinite ? value.toDouble() : null;
@@ -116,6 +123,8 @@ class Welcome {
     required this.robotCommands,
     required this.limits,
     this.video,
+    this.robot = '',
+    this.cameras = const [],
   });
 
   factory Welcome.fromJson(Map<String, dynamic> json) {
@@ -133,6 +142,8 @@ class Welcome {
       robotCommands: robot,
       limits: limits,
       video: VideoOffer.fromJson(json['video']),
+      robot: _str(json['robot']),
+      cameras: _strings(json['cameras']),
     );
   }
 
@@ -147,6 +158,12 @@ class Welcome {
 
   /// WebRTC video, when the robot runs MediaMTX; else the camera comes as JPEG frames only.
   final VideoOffer? video;
+
+  /// The robot's kind ('x30'); empty for Pashupati.
+  final String robot;
+
+  /// The cameras the robot streams as JPEG frames (X30: visible, thermal), the first by default.
+  final List<String> cameras;
 
   bool has(String command) => commands.contains(command);
 }
@@ -194,6 +211,9 @@ class RobotState {
     this.speed,
     this.trip,
     this.net,
+    this.camera = '',
+    this.recorder,
+    this.substation,
   });
 
   factory RobotState.fromJson(Map<String, dynamic> json) {
@@ -237,6 +257,9 @@ class RobotState {
       speed: PatrolSpeed.fromJson(json['speed']),
       trip: TripStatus.fromJson(json['trip']),
       net: NetStatus.fromJson(json['net']),
+      camera: _str(json['camera']),
+      recorder: RecorderStatus.fromJson(json['recorder']),
+      substation: SubstationStatus.fromJson(json['substation']),
     );
   }
 
@@ -285,20 +308,32 @@ class RobotState {
   /// The robot's own internet (a ping through its modem); null when it does not check.
   final NetStatus? net;
 
+  /// The camera the robot streams now (X30: visible or thermal).
+  final String camera;
+
+  /// The X30's camera recorder (raw thermal, video, acoustic); null without one.
+  final RecorderStatus? recorder;
+
+  /// The X30's substation inspection (thermal and partial discharge at the stop points).
+  final SubstationStatus? substation;
+
   bool get remote => mode == 'remote';
   bool get localized => localization.isNotEmpty && localization != 'none';
 
   /// Where map->odom comes from: none, start (identity at the start pose), tag, pose (RViz), other.
   String get localizationKind {
     if (!localized) return 'none';
-    if (localization.startsWith('apriltag')) return 'tag';
-    if (localization.startsWith('start')) return 'start';
+    if (localization.startsWith('apriltag') || localization.startsWith('tag:')) return 'tag';
+    if (localization.startsWith('start') || localization.startsWith('origin')) return 'start';
     if (localization.contains('Pose Estimate')) return 'pose';
     return 'other';
   }
 
-  /// The tag frame of a tag localization ('base_map' from 'apriltag "base_map" (auto start)').
-  String? get localizationTag => RegExp(r'"([^"]+)"').firstMatch(localization)?.group(1);
+  /// The tag frame of a tag localization ('base_map' from 'apriltag "base_map" (auto start)',
+  /// 'gate' from the X30's 'tag:gate').
+  String? get localizationTag => localization.startsWith('tag:')
+      ? localization.substring(4)
+      : RegExp(r'"([^"]+)"').firstMatch(localization)?.group(1);
   bool get navPaused => nav == 'PAUSED';
   bool get navActive => !const {'NAV_INACTIVE', 'NO_PATH', 'PAUSED'}.contains(nav);
 }
@@ -725,4 +760,121 @@ class InspectionCategory {
     'desc': ownDesc || !builtin ? desc : '',
     'report': report,
   };
+}
+
+/// `state.recorder` of the X30: the camera recorder on its perception host.
+class RecorderStatus {
+  const RecorderStatus({
+    required this.on,
+    this.reason = '',
+    this.session = '',
+    this.seconds = 0,
+    this.frames = 0,
+    this.chunks = 0,
+    this.videos = 0,
+    this.dropped = 0,
+    this.streams = const [],
+    this.freeGb,
+    this.message = '',
+    this.offline = false,
+  });
+
+  static RecorderStatus? fromJson(Object? json) {
+    if (json is! Map) return null;
+    int count(String key) => _num(json[key])?.round() ?? 0;
+    return RecorderStatus(
+      on: json['on'] == true,
+      reason: _str(json['reason']),
+      session: _str(json['session']),
+      seconds: count('sec'),
+      frames: count('frames'),
+      chunks: count('chunks'),
+      videos: count('videos'),
+      dropped: count('dropped'),
+      streams: _strings(json['streams']),
+      freeGb: _num(json['free_gb']),
+      message: _str(json['msg']),
+      offline: json['offline'] == true,
+    );
+  }
+
+  /// Recording now.
+  final bool on;
+
+  /// patrol (a route runs) or manual (recorder_start).
+  final String reason;
+
+  /// The session's folder on the robot (`101500_patrol`).
+  final String session;
+  final int seconds;
+
+  /// Raw thermal frames (.npz), acoustic chunks and MP4 segments written.
+  final int frames;
+  final int chunks;
+  final int videos;
+  final int dropped;
+
+  /// Each camera stream and its state (`visible: recording`).
+  final List<String> streams;
+  final double? freeGb;
+  final String message;
+
+  /// No status from the recorder for a while.
+  final bool offline;
+}
+
+/// `state.substation` of the X30: its inspection of thermal and partial discharge.
+class SubstationStatus {
+  const SubstationStatus({
+    required this.state,
+    this.site = '',
+    this.points = 0,
+    this.targets = 0,
+    this.thermal = false,
+    this.acoustic = false,
+    this.current = '',
+    this.last = '',
+    this.severity = 'normal',
+    this.ambient,
+    this.message = '',
+    this.offline = false,
+  });
+
+  static SubstationStatus? fromJson(Object? json) {
+    if (json is! Map) return null;
+    return SubstationStatus(
+      state: _str(json['state'], 'idle'),
+      site: _str(json['site']),
+      points: _num(json['points'])?.round() ?? 0,
+      targets: _num(json['targets'])?.round() ?? 0,
+      thermal: json['thermal'] == true,
+      acoustic: json['acoustic'] == true,
+      current: _str(json['current']),
+      last: _str(json['last']),
+      severity: _str(json['severity'], 'normal'),
+      ambient: _num(json['ambient']),
+      message: _str(json['msg']),
+      offline: json['offline'] == true,
+    );
+  }
+
+  /// idle, inspecting or disabled.
+  final String state;
+  final String site;
+  final int points;
+  final int targets;
+
+  /// The thermal camera and the acoustic camera are connected.
+  final bool thermal;
+  final bool acoustic;
+
+  /// The point being inspected now, and the last one with its severity.
+  final String current;
+  final String last;
+
+  /// normal, attention, warning or critical.
+  final String severity;
+  final double? ambient;
+  final String message;
+  final bool offline;
 }
