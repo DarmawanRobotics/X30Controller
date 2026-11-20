@@ -1,0 +1,163 @@
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'input/gamepad_input.dart';
+import 'input/skydroid_input.dart';
+import 'input/sticks.dart';
+import 'l10n.dart';
+import 'net/discovery.dart';
+import 'net/teleop_client.dart';
+import 'net/webrtc_video.dart';
+
+/// Handheld settings, kept on the device. The connection part is hidden behind three taps on
+/// the version; the rest is under the gear while driving.
+class AppSettings extends ChangeNotifier {
+  AppSettings._(this._prefs);
+
+  static const defaultHost = '192.168.1.106'; // the X30's navigation host on its Wi-Fi
+  static const defaultPort = 9870;
+
+  /// Share of the robot's speed limits per speed level.
+  static const speedScale = [0.3, 0.6, 1.0];
+
+  final SharedPreferencesWithCache _prefs;
+
+  static Future<AppSettings> load() async {
+    final prefs = await SharedPreferencesWithCache.create(
+      cacheOptions: const SharedPreferencesWithCacheOptions(),
+    );
+    return AppSettings._(prefs);
+  }
+
+  String get host => _prefs.getString('host') ?? defaultHost;
+  int get port => _prefs.getInt('port') ?? defaultPort;
+  String get token => _prefs.getString('token') ?? '';
+  String get handheldName => _prefs.getString('name') ?? 'H12';
+  String get language => _prefs.getString('language') ?? 'id';
+
+  /// Camera video from the robot, and its rate.
+  bool get video => _prefs.getBool('camera') ?? true;
+  double get cameraFps => _prefs.getDouble('camera_fps') ?? 8;
+
+  /// Lidar returns drawn on the map.
+  bool get lidar => _prefs.getBool('map') ?? true;
+
+  /// The big view: 'camera' or 'map'; the other one is the small box.
+  String get mainView => _prefs.getString('main_view') ?? 'camera';
+
+  /// Hold R1 to drive with the gamepad sticks.
+  bool get deadman => _prefs.getBool('deadman') ?? false;
+
+  /// The robot computer's CPU, GPU and memory use on the drive screen (for development).
+  bool get showLoad => _prefs.getBool('show_load') ?? true;
+
+  /// The robot's trip meter (distance, speeds) on the drive screen.
+  bool get showTrip => _prefs.getBool('show_trip') ?? true;
+
+  /// Inspection time of a stop point marked from the handheld, seconds.
+  double get stopDwell => _prefs.getDouble('dwell') ?? 10;
+
+  /// Speed level 1..3, see [speedScale].
+  int get gear => _gear(_prefs.getInt('gear') ?? 1);
+
+  /// Sticks on the touch screen when neither the H12's sticks nor a gamepad are there.
+  bool get touchSticks => _prefs.getBool('touch_sticks') ?? true;
+
+  /// The H12 channels (1-based) of forward, right and turn right; the H12's left stick drives
+  /// and strafes, its right stick turns.
+  List<int> get h12Channels {
+    final parts = (_prefs.getString('h12_channels') ?? '2,1,3').split(',');
+    final values = parts.map(int.tryParse).whereType<int>().toList();
+    return values.length == 3 && values.every((c) => c >= 1 && c <= 16) ? values : const [2, 1, 3];
+  }
+
+  /// Whether each of [h12Channels] is reversed.
+  List<bool> get h12Invert {
+    final text = _prefs.getString('h12_invert') ?? '000';
+    return text.length == 3 ? [for (final c in text.split('')) c == '1'] : const [false, false, false];
+  }
+
+  static int _gear(int value) => value < 1 ? 1 : (value > 3 ? 3 : value);
+
+  Future<void> update({
+    String? host,
+    int? port,
+    String? token,
+    String? handheldName,
+    String? language,
+    bool? video,
+    double? cameraFps,
+    bool? lidar,
+    String? mainView,
+    bool? deadman,
+    bool? showLoad,
+    bool? showTrip,
+    double? stopDwell,
+    int? gear,
+    bool? touchSticks,
+    List<int>? h12Channels,
+    List<bool>? h12Invert,
+  }) async {
+    final writes = <Future<void>>[
+      if (host != null) _prefs.setString('host', host.trim()),
+      if (port != null) _prefs.setInt('port', port),
+      if (token != null) _prefs.setString('token', token),
+      if (handheldName != null) _prefs.setString('name', handheldName.trim()),
+      if (language != null) _prefs.setString('language', language),
+      if (video != null) _prefs.setBool('camera', video),
+      if (cameraFps != null) _prefs.setDouble('camera_fps', cameraFps),
+      if (lidar != null) _prefs.setBool('map', lidar),
+      if (mainView != null) _prefs.setString('main_view', mainView),
+      if (deadman != null) _prefs.setBool('deadman', deadman),
+      if (showLoad != null) _prefs.setBool('show_load', showLoad),
+      if (showTrip != null) _prefs.setBool('show_trip', showTrip),
+      if (stopDwell != null) _prefs.setDouble('dwell', stopDwell),
+      if (gear != null) _prefs.setInt('gear', _gear(gear)),
+      if (touchSticks != null) _prefs.setBool('touch_sticks', touchSticks),
+      if (h12Channels != null && h12Channels.length == 3)
+        _prefs.setString('h12_channels', h12Channels.join(',')),
+      if (h12Invert != null && h12Invert.length == 3)
+        _prefs.setString('h12_invert', h12Invert.map((b) => b ? '1' : '0').join()),
+    ];
+    // the cache holds the new values already: apply them now, the disk catches up
+    notifyListeners();
+    await Future.wait(writes);
+  }
+}
+
+/// Everything the screens share, created once in main().
+class Services {
+  Services({
+    required this.settings,
+    required this.client,
+    required this.discovery,
+    required this.gamepad,
+    required this.video,
+    SkydroidInput? skydroid,
+  }) : skydroid = skydroid ?? SkydroidInput() {
+    sticks = Sticks(skydroid: this.skydroid, gamepad: gamepad);
+  }
+
+  final AppSettings settings;
+  final TeleopClient client;
+  final Discovery discovery;
+  final GamepadInput gamepad;
+
+  /// The Skydroid H12's own sticks and keys (its SDK in the build).
+  final SkydroidInput skydroid;
+
+  /// The drive sticks: the H12's, a gamepad's or the touch screen's.
+  late final Sticks sticks;
+
+  /// The robot camera over WebRTC, when the robot offers it.
+  final WebRtcVideo video;
+
+  String t(String key, [Map<String, Object> args = const {}]) =>
+      tr(settings.language, key, args);
+
+  /// Label of a navigation state (falls back to the state name).
+  String navLabel(String nav) {
+    final label = t('nav_$nav');
+    return label.startsWith('nav_') ? nav : label;
+  }
+}
