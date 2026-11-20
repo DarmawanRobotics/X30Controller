@@ -1,0 +1,14 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+*.iml
+.idea/
+.vscode/
+.DS_Store
+# Skydroid's SDK is proprietary: put it in android/app/libs yourself (README "Skydroid H12")
+android/app/libs/*.aar
