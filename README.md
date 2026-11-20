@@ -41,15 +41,19 @@ Indonesian and English.
 
 ## Install
 
-**From CI.** Every push builds a release APK: open
-[Actions](https://github.com/DarmawanRobotics/X30Controller/actions/workflows/ci.yml), pick the
-latest green run, download the `x30-controller-apk` artifact, unzip it and install:
+**From a release.** [Releases](https://github.com/DarmawanRobotics/X30Controller/releases): the
+latest `x30-controller-<version>.apk` (its `.sha256` beside it). Open the page in the H12's
+browser and install the download, or from a computer with the H12 on USB:
 
 ```bash
-adb install -r app-release.apk
+gh release download -R DarmawanRobotics/X30Controller -p 'x30-controller-*.apk'
+adb install -r x30-controller-*.apk
 ```
 
-That APK has no Skydroid SDK: on the H12 build it yourself ([Skydroid H12](#skydroid-h12)).
+**From CI.** Every push builds a release APK: open
+[Actions](https://github.com/DarmawanRobotics/X30Controller/actions/workflows/ci.yml), pick the
+latest green run, download the `x30-controller-apk` artifact, unzip it and install it the same
+way. Both carry Skydroid's SDK, fetched for the build ([Skydroid H12](#skydroid-h12)).
 
 **From source.** Flutter 3.35 or newer, the handheld on USB in `adb devices`:
 
@@ -68,12 +72,14 @@ the token is the robot's `X30_TELEOP_TOKEN` (`/etc/x30/navigation.env`).
 
 The H12 sends its sticks over its own radio, not as an Android gamepad: only Skydroid's RC SDK
 reads them on the handheld. The SDK is Skydroid's and proprietary, so it is not in this
-repository:
+repository; a build fetches it:
 
-1. Get `rcsdk-v1.9.2.aar` from Skydroid's demo, https://gitee.com/skydroid/rcsdk-demo
-   (`app/libs`).
-2. Put it in `android/app/libs/` and build as above. The build finds it (`build.gradle.kts`) and
-   compiles the SDK reader (`android/app/src/skydroid`); without it a stub says there is none.
+1. `tool/skydroid_sdk.sh fetch` puts `rcsdk-v1.9.2.aar` in `android/app/libs/`, from Skydroid's
+   demo (https://gitee.com/skydroid/rcsdk-demo, `app/libs`) or a copy of the same file, checked
+   against its sha256 either way. CI and releases do this; a release without it fails.
+2. Build as above. The build finds it (`build.gradle.kts`) and compiles the SDK reader
+   (`android/app/src/skydroid`); without it a stub says there is none.
+   `tool/skydroid_sdk.sh check <apk>` says whether an APK carries it.
 3. On the H12: Settings (gear), *Skydroid H12 sticks* shows the link and the channels live. Pick
    the channels of forward, strafe and turn (default 2, 1, 3: the left stick drives, the right
    stick turns) and reverse those that go the wrong way.
@@ -125,6 +131,20 @@ flutter test
 ```
 
 CI runs on every push: analysis, tests (failures as annotations), formatting notices, the APK.
+
+## Releases
+
+Push a tag `v<version>`, the version in `pubspec.yaml`, to publish a GitHub Release with the APK
+(`.github/workflows/release.yml`):
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+The APK is signed with the release key when the repository has these secrets, so a new release
+installs over the old one: `ANDROID_KEYSTORE_BASE64` (the keystore, base64),
+`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Without them it is
+signed with the runner's debug key: uninstall the old app before installing a new one.
 
 ## License
 

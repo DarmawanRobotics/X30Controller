@@ -38,6 +38,10 @@ jobs:
       - run: flutter pub get
       - run: flutter test
 
+      # Skydroid's SDK (tool/skydroid_sdk.sh): a release always reads the H12's own sticks
+      - name: Skydroid SDK
+        run: tool/skydroid_sdk.sh fetch --require
+
       # the release key from the repository secrets (README "Releases"); without it the APK is
       # signed with this runner's debug key and must be installed over an uninstalled app
       - name: Release key
@@ -60,6 +64,7 @@ jobs:
           flutter build apk --release
           apk="x30-controller-${{ steps.version.outputs.version }}.apk"
           cp build/app/outputs/flutter-apk/app-release.apk "$apk"
+          tool/skydroid_sdk.sh check "$apk"
           sha256sum "$apk" > "$apk.sha256"
           rm -f "$RUNNER_TEMP/release.jks"
 

@@ -74,8 +74,9 @@ jobs:
           PY
           exit $status
 
-  # an installable build for the handheld (Actions → this run → Artifacts); signed with the
-  # release key when the secrets are set (README "Releases"), else with the runner's debug key
+  # an installable build for the handheld (Actions → this run → Artifacts), with Skydroid's SDK
+  # when a source gives it (tool/skydroid_sdk.sh); signed with the release key when the secrets
+  # are set (README "Releases"), else with the runner's debug key
   apk:
     needs: analyze-test
     runs-on: ubuntu-latest
@@ -97,11 +98,17 @@ jobs:
           [ -n "$KEYSTORE_BASE64" ] || exit 0
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
           echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+      - name: Skydroid SDK
+        run: tool/skydroid_sdk.sh fetch
       - run: flutter build apk --release
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      - name: The H12's sticks in the APK
+        run: |
+          tool/skydroid_sdk.sh check build/app/outputs/flutter-apk/app-release.apk ||
+            echo "::warning title=No H12 sticks::this APK drives with a gamepad or the touch sticks only"
       - uses: actions/upload-artifact@v4
         with:
           name: x30-controller-apk
