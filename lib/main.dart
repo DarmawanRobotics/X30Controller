@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -23,6 +25,7 @@ Future<void> main() async {
     gamepad: GamepadInput()..start(),
     video: WebRtcVideo(),
   );
+  unawaited(services.skydroid.start()); // the H12's own sticks, when the SDK is built in
   runApp(TeleopApp(services: services));
 }
 
