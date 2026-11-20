@@ -46,7 +46,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final host = _host.text.trim().isEmpty ? AppSettings.defaultHost : _host.text.trim();
     final parsed = int.tryParse(_port.text.trim());
     final port = parsed != null && parsed > 0 && parsed < 65536 ? parsed : AppSettings.defaultPort;
-    final name = _name.text.trim().isEmpty ? 'Retroid' : _name.text.trim();
+    final name = _name.text.trim().isEmpty ? 'H12' : _name.text.trim();
     final token = _token.text;
     if (host == _settings.host &&
         port == _settings.port &&
@@ -132,6 +132,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               : t('speed_max', {'v': (limits[0] * share).toStringAsFixed(2)}),
         ),
         _switch(t('deadman'), _settings.deadman, (value) => _settings.update(deadman: value)),
+        _switch(
+          t('touch_sticks'),
+          _settings.touchSticks,
+          (value) => _settings.update(touchSticks: value),
+        ),
+        _section(t('h12_sticks')),
+        _h12Mapping(),
 
         _section(t('section_display')),
         _switch(t('video'), _settings.video, (value) => _settings.update(video: value)),
@@ -319,6 +326,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _controls() {
     final language = _settings.language;
     final help = [
+      ('H12', t('help_h12')),
       ('L stick', t('help_left')),
       ('R stick', t('help_right')),
       ('B', t('help_b')),
@@ -335,6 +343,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.all(12),
       child: ListView(
         children: [
+          if (widget.services.skydroid.available) ...[
+            _h12Test(),
+            const SizedBox(height: 14),
+          ],
           if (widget.admin) ...[
             _gamepadTest(),
             const SizedBox(height: 14),
@@ -353,6 +365,89 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
         ],
       ),
+    );
+  }
+
+  /// Which H12 channel drives, strafes and turns, and which are reversed.
+  Widget _h12Mapping() {
+    final skydroid = widget.services.skydroid;
+    final channels = _settings.h12Channels;
+    final invert = _settings.h12Invert;
+    final rows = [('h12_forward', 0), ('h12_right', 1), ('h12_turn', 2)];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          skydroid.available
+              ? t('h12_state', {'state': skydroid.state.isEmpty ? '…' : skydroid.state})
+              : t('h12_none'),
+          style: Txt.small,
+        ),
+        for (final (key, i) in rows)
+          Row(
+            children: [
+              Expanded(child: Text(t(key), style: Txt.body)),
+              DropdownButton<int>(
+                value: channels[i],
+                items: [
+                  for (var c = 1; c <= 12; c++)
+                    DropdownMenuItem(value: c, child: Text('${t('h12_channel')} $c')),
+                ],
+                onChanged: (c) {
+                  if (c == null) return;
+                  _settings.update(h12Channels: [...channels]..[i] = c);
+                },
+              ),
+              const SizedBox(width: 8),
+              Text(t('h12_invert'), style: Txt.small),
+              Checkbox(
+                value: invert[i],
+                onChanged: (value) =>
+                    _settings.update(h12Invert: [...invert]..[i] = value ?? false),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  /// The H12's channels as bars, to find which stick, key and switch is which.
+  Widget _h12Test() {
+    final skydroid = widget.services.skydroid;
+    return ListenableBuilder(
+      listenable: skydroid,
+      builder: (context, _) {
+        final values = skydroid.channels;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(t('h12_sticks'), style: Txt.title),
+            const SizedBox(height: 6),
+            for (var c = 1; c <= values.length && c <= 12; c++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Row(
+                  children: [
+                    SizedBox(width: 34, child: Text('CH$c', style: Txt.small)),
+                    Expanded(
+                      child: LinearProgressIndicator(
+                        value: ((values[c - 1] - 1000) / 1000).clamp(0.0, 1.0),
+                        minHeight: 6,
+                        color: Palette.remote,
+                        backgroundColor: Palette.line,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 44,
+                      child: Text('${values[c - 1]}', style: Txt.small, textAlign: TextAlign.end),
+                    ),
+                  ],
+                ),
+              ),
+            if (values.isEmpty) Text(skydroid.state, style: Txt.small),
+          ],
+        );
+      },
     );
   }
 

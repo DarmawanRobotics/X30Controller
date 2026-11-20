@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gamepads/gamepads.dart';
 
-import '../input/gamepad_input.dart';
+import '../input/skydroid_input.dart';
 import '../l10n.dart' show categoryLabel;
 import '../net/teleop_client.dart';
 import '../protocol/messages.dart' show RobotState;
@@ -17,13 +17,16 @@ import '../widgets/glance.dart';
 import '../widgets/hud.dart';
 import '../widgets/trip_panel.dart';
 import '../widgets/map_view.dart';
+import '../widgets/touch_stick.dart';
+import '../widgets/x30_panel.dart';
 import 'patrol_screen.dart';
 import 'routes_screen.dart';
 import 'settings_screen.dart';
 
 /// Home while connected: the camera and the map (tap the small box to swap them), STOP and the
-/// robot's own actions on the right, mapping and patrol icons at the bottom. Driving is on the
-/// gamepad; touch is for the views (pinch and drag the big map).
+/// robot's own actions on the right, mapping, patrol, the camera recorder and an inspection at
+/// the bottom. Driving is on the Skydroid H12's sticks, a gamepad, or the touch sticks when
+/// neither is there; touch is otherwise for the views (pinch and drag the big map).
 class DriveScreen extends StatefulWidget {
   const DriveScreen({super.key, required this.services});
 
@@ -61,6 +64,11 @@ class _DriveScreenState extends State<DriveScreen> {
   int? _seenReports;
 
   StreamSubscription<GamepadButton>? _buttons;
+  StreamSubscription<SkydroidKey>? _keys;
+  StreamSubscription<int>? _levels;
+
+  /// The H12's sticks were live at the last drive tick (the touch sticks hide meanwhile).
+  bool _skydroidLive = false;
   late final AppLifecycleListener _lifecycle;
 
   @override
@@ -68,6 +76,8 @@ class _DriveScreenState extends State<DriveScreen> {
     super.initState();
     _loop = Timer.periodic(const Duration(milliseconds: 50), (_) => _drive());
     _buttons = s.gamepad.presses.listen(_onButton);
+    _keys = s.skydroid.presses.listen(_onKey);
+    _levels = s.skydroid.levels.listen(_setGear);
     _lifecycle = AppLifecycleListener(onPause: _suspend, onResume: _resume);
     client.addListener(_onClient);
     s.settings.addListener(_syncStreams);
@@ -84,6 +94,8 @@ class _DriveScreenState extends State<DriveScreen> {
     _loop?.cancel();
     _toastTimer?.cancel();
     _buttons?.cancel();
+    _keys?.cancel();
+    _levels?.cancel();
     _lifecycle.dispose();
     client.removeListener(_onClient);
     s.settings.removeListener(_syncStreams);
@@ -95,23 +107,26 @@ class _DriveScreenState extends State<DriveScreen> {
 
   // ---------------------------------------------------------------- input
 
-  /// 20 Hz from the gamepad sticks; the client only sends in REMOTE mode.
+  /// 20 Hz from the live sticks (H12, gamepad or touch); the client only sends in REMOTE mode.
   void _drive() {
-    final pad = s.gamepad;
-    if (_covers > 0 || (s.settings.deadman && !pad.pressed(GamepadButton.rightBumper))) {
+    final live = s.skydroid.live;
+    if (live != _skydroidLive && mounted) setState(() => _skydroidLive = live);
+    final sticks = s.sticks.read(s.settings);
+    if (_covers > 0 || !sticks.hold) {
       client.drive(0, 0, 0);
       _hinted = false;
       return;
     }
-    final x = GamepadInput.shaped(pad.axis(GamepadAxis.leftStickX));
-    final y = GamepadInput.shaped(pad.axis(GamepadAxis.leftStickY));
-    final r = GamepadInput.shaped(pad.axis(GamepadAxis.rightStickX));
     final limits = client.welcome?.limits ?? const [0.5, 0.3, 1.0];
     final scale = AppSettings.speedScale[s.settings.gear - 1];
     // stick up = forward (+x), stick right = right (-y), turn right = clockwise (-z)
-    client.drive(y * limits[0] * scale, -x * limits[1] * scale, -r * limits[2] * scale);
+    client.drive(
+      sticks.forward * limits[0] * scale,
+      -sticks.right * limits[1] * scale,
+      -sticks.turn * limits[2] * scale,
+    );
 
-    final pushing = math.max(math.max(x.abs(), y.abs()), r.abs()) > 0.4;
+    final pushing = sticks.strongest > 0.4;
     if (pushing &&
         !_hinted &&
         client.status == LinkStatus.connected &&
@@ -144,6 +159,26 @@ class _DriveScreenState extends State<DriveScreen> {
       case GamepadButton.y when shift:
         _robotAction('sit_down');
       default:
+        break;
+    }
+  }
+
+  /// The H12's keys: B is STOP everywhere; A switches AUTO / REMOTE, C and D the speed level
+  /// (the E switch sets it too).
+  void _onKey(SkydroidKey key) {
+    if (key == SkydroidKey.b) {
+      _estop();
+      return;
+    }
+    if (_covers > 0) return;
+    switch (key) {
+      case SkydroidKey.a:
+        _setMode(client.state.remote ? 'auto' : 'remote');
+      case SkydroidKey.c:
+        _setGear(s.settings.gear - 1);
+      case SkydroidKey.d:
+        _setGear(s.settings.gear + 1);
+      case SkydroidKey.b:
         break;
     }
   }
@@ -278,6 +313,29 @@ class _DriveScreenState extends State<DriveScreen> {
       _marks.clear();
       client.clearTrail();
     });
+  }
+
+  /// The X30's camera recorder: a manual session on, or the session off.
+  Future<void> _toggleRecorder() async {
+    final on = client.state.recorder?.on == true;
+    final name = on ? 'recorder_stop' : 'recorder_start';
+    await _run(name, label: s.t(on ? 'rec_stopped' : 'rec_started'));
+  }
+
+  /// The X30's inspection where it stands (its point's targets, minutes); a confirm first.
+  Future<void> _inspectHere() async {
+    final ok = await _confirm(s.t('inspect_confirm'), s.t('inspect_confirm_body'), s.t('run'));
+    if (!ok || !mounted) return;
+    await _run('inspect', label: s.t('act_inspect_here'));
+  }
+
+  /// The next camera of the robot (X30: visible, thermal) as the JPEG stream.
+  void _nextCamera() {
+    final cameras = client.welcome?.cameras ?? const <String>[];
+    if (cameras.length < 2) return;
+    HapticFeedback.selectionClick();
+    final now = cameras.indexOf(client.state.camera);
+    client.setStreams(cameraName: cameras[(now + 1) % cameras.length]);
   }
 
   Future<void> _markStop() async {
@@ -544,6 +602,10 @@ class _DriveScreenState extends State<DriveScreen> {
                       showLoad: s.settings.showLoad,
                       onTap: (client.welcome?.has('inspection_set') ?? false) ? _openPatrol : null,
                     ),
+                    if (state.recorder != null || state.substation != null) ...[
+                      const SizedBox(height: 6),
+                      X30Panel(state: state, language: s.settings.language),
+                    ],
                     if (s.settings.showTrip && state.trip != null) ...[
                       const SizedBox(height: 6),
                       TripPanel(
@@ -582,7 +644,7 @@ class _DriveScreenState extends State<DriveScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (!s.gamepad.connected)
+              if (!_skydroidLive && !s.gamepad.connected && !s.settings.touchSticks)
                 IgnorePointer(
                   key: const ValueKey('no-gamepad'),
                   child: Padding(
@@ -620,10 +682,35 @@ class _DriveScreenState extends State<DriveScreen> {
           ),
         ),
 
+        if (_touchSticks) ...[
+          Positioned(
+            key: const ValueKey('stick-left'),
+            left: insetWidth + 24,
+            bottom: 70,
+            child: TouchStick(
+              label: s.t('stick_drive'),
+              onChanged: (value) => s.sticks.touch(left: value),
+            ),
+          ),
+          Positioned(
+            key: const ValueKey('stick-right'),
+            right: middleRight + 8,
+            bottom: 70,
+            child: TouchStick(
+              horizontalOnly: true,
+              label: s.t('stick_turn'),
+              onChanged: (value) => s.sticks.touch(right: value),
+            ),
+          ),
+        ],
+
         if (overlay != null) Positioned.fill(key: const ValueKey('overlay'), child: overlay),
       ],
     );
   }
+
+  /// The touch sticks drive: no H12 sticks, no gamepad, and the setting on.
+  bool get _touchSticks => s.settings.touchSticks && !_skydroidLive && !s.gamepad.connected;
 
   Widget _topBar() {
     final state = client.state;
@@ -827,6 +914,18 @@ class _DriveScreenState extends State<DriveScreen> {
           onPressed: _swapViews,
         ),
         const SizedBox(width: 8),
+        if ((client.welcome?.cameras.length ?? 0) > 1) ...[
+          HudButton(
+            icon: client.state.camera == 'thermal'
+                ? Icons.local_fire_department_rounded
+                : Icons.photo_camera_rounded,
+            size: 36,
+            label: s.t('camera_next'),
+            tint: client.state.camera == 'thermal' ? Palette.remote : Palette.text,
+            onPressed: _nextCamera,
+          ),
+          const SizedBox(width: 8),
+        ],
         HudButton(
           icon: Icons.gps_fixed_rounded,
           size: 36,
@@ -869,6 +968,7 @@ class _DriveScreenState extends State<DriveScreen> {
     final recording = state.recording;
     final running = !_idleNav.contains(state.nav);
     final inspection = inspectionLook(state.inspection);
+    final recorderOn = state.recorder?.on == true && state.recorder?.offline != true;
     const width = 50.0;
 
     return Glass(
@@ -937,6 +1037,27 @@ class _DriveScreenState extends State<DriveScreen> {
                   ? () => _run('nav_stop', label: s.t('nav_ended'))
                   : null,
             ),
+            if (has('recorder_start') || has('inspect')) const _ToolbarDivider(),
+            if (has('recorder_start'))
+              ActionButton(
+                icon: recorderOn ? Icons.videocam_off_rounded : Icons.videocam_rounded,
+                label: s.t(recorderOn ? 'act_rec_stop' : 'act_rec'),
+                tint: Palette.stop,
+                active: recorderOn,
+                width: width,
+                busy: busy('recorder_start') || busy('recorder_stop'),
+                onPressed: _toggleRecorder,
+              ),
+            if (has('inspect'))
+              ActionButton(
+                icon: Icons.thermostat_rounded,
+                label: s.t('act_inspect_here'),
+                tint: Palette.auto,
+                active: state.substation?.state == 'inspecting',
+                width: width,
+                busy: busy('inspect'),
+                onPressed: _inspectHere,
+              ),
             const _ToolbarDivider(),
             // the inspection's state at a glance; the page sets it and the patrol speed
             ActionButton(
