@@ -4,8 +4,18 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Skydroid's RC SDK (proprietary, not in the repository): with libs/rcsdk-*.aar the app reads a
+// Skydroid handheld's own sticks (src/skydroid); without it a stub says there are none.
+val skydroidSdk = fileTree("libs") { include("rcsdk*.aar") }
+val withSkydroid = !skydroidSdk.isEmpty
+
 android {
     namespace = "com.darmawanrobotics.x30_controller"
+    sourceSets {
+        getByName("main") {
+            java.srcDir(if (withSkydroid) "src/skydroid/java" else "src/noskydroid/java")
+        }
+    }
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -46,6 +56,7 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName(if (releaseKeystore != null) "release" else "debug")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }
@@ -58,4 +69,11 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    if (withSkydroid) {
+        implementation(skydroidSdk)
+        implementation("com.google.code.gson:gson:2.10.1") // used inside the SDK
+    }
 }
