@@ -1,7 +1,7 @@
 name: x30_controller
 description: "Handheld for the Deep Robotics X30 (x30_ros), a Skydroid H12 or any Android."
 publish_to: none
-version: 1.0.2+3
+version: 1.1.0+4
 
 environment:
   sdk: ^3.9.0
