@@ -16,8 +16,8 @@ so it drives a Pashupati robot too) and adds the X30's own parts.
 - The Skydroid H12's own sticks (through Skydroid's SDK, [below](#skydroid-h12)): left stick drives
   and strafes, right stick turns; key A switches AUTO / REMOTE, B is STOP, C / D and switch E set
   the speed level.
-- Or a gamepad (a Retroid, any Bluetooth pad), or touch sticks on the screen when there are no
-  physical ones (any phone or tablet).
+- Or a gamepad (a Retroid, any Bluetooth pad), or touch sticks on the screen: the same APK runs
+  on any Android 7+ phone or tablet ([below](#any-android-phone-or-tablet)).
 - AUTO / REMOTE, three speed levels, the X30's actions (stand up, sit down, stepping, gaits) as
   icons. **STOP** is the software e-stop, released by holding the button for a second.
 
@@ -67,6 +67,24 @@ adb install -r build/app/outputs/flutter-apk/app-release.apk
 **First connection.** Join the robot's Wi-Fi (`X30*****`, Application Manual 3.1). On the start
 screen tap the version three times: the robot is `192.168.1.106:9870` (its navigation host), and
 the token is the robot's `X30_TELEOP_TOKEN` (`/etc/x30/navigation.env`).
+
+## Any Android phone or tablet
+
+The release APK runs on any Android device, not only the H12. Skydroid's SDK starts only on a
+Skydroid handheld (it recognizes them by model); anywhere else the app says *Not a Skydroid
+handheld* in the settings and drives with the touch sticks on the screen, or a gamepad.
+
+Settings (gear), **Sticks**:
+
+| Choice | Drives |
+|---|---|
+| **Auto** (default) | the H12's sticks, else a gamepad, else the touch sticks |
+| **H12** | only the H12's sticks; also starts Skydroid's SDK on a handheld whose model it does not recognize |
+| **Gamepad** | only a gamepad (Bluetooth or USB) |
+| **Touch** | only the touch sticks, even with a gamepad or the H12 there |
+
+The left touch stick drives and strafes, the right one turns; release them and the robot stops.
+Hold the phone in landscape.
 
 ## Skydroid H12
 

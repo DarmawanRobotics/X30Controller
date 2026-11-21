@@ -21,7 +21,12 @@ public final class SkydroidSticks {
         return false;
     }
 
-    public void start(Listener listener) {
+    /** No SDK, no handheld to recognize. */
+    public static String device() {
+        return "none";
+    }
+
+    public void start(Listener listener, boolean force) {
         listener.onState("no Skydroid SDK in this build");
     }
 
