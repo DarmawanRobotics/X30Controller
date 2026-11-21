@@ -30,8 +30,9 @@ void main() {
     expect(reading.hold, isTrue);
   });
 
-  test('without the H12 or a gamepad the touch sticks drive, when shown', () async {
+  test('without the H12 or a gamepad the touch sticks drive (a phone, a tablet)', () async {
     final settings = await settingsWith({});
+    expect(settings.input, InputMode.auto);
     final sticks = Sticks(skydroid: SkydroidInput(), gamepad: GamepadInput())
       ..touch(left: const Offset(0.5, 1), right: const Offset(-1, 0));
     final reading = sticks.read(settings);
@@ -40,9 +41,37 @@ void main() {
     expect(reading.right, greaterThan(0.4));
     expect(reading.turn, -1.0);
     expect(sticks.any(settings), isTrue);
-    await settings.update(touchSticks: false);
+    expect(sticks.showTouch(settings), isTrue);
+  });
+
+  test('the input chosen in the settings is the only one that drives', () async {
+    final settings = await settingsWith({'input': 'touch'});
+    final skydroid = SkydroidInput()..onEvent(List.filled(12, 1950));
+    final sticks = Sticks(skydroid: skydroid, gamepad: GamepadInput())
+      ..touch(left: const Offset(0, -1));
+    // touch: the screen drives even while the H12's sticks are live
+    expect(sticks.read(settings).source, StickSource.touch);
+    expect(sticks.read(settings).forward, -1.0);
+    // H12: its sticks only
+    await settings.update(input: InputMode.h12);
+    expect(sticks.read(settings).source, StickSource.skydroid);
+    expect(sticks.showTouch(settings), isFalse);
+    // gamepad: none connected, nothing drives, and the screen says so
+    await settings.update(input: InputMode.gamepad);
     expect(sticks.read(settings).source, StickSource.none);
     expect(sticks.any(settings), isFalse);
+    // H12 chosen while its sticks are silent: nothing drives
+    await settings.update(input: InputMode.h12);
+    final silent = Sticks(skydroid: SkydroidInput(), gamepad: GamepadInput());
+    expect(silent.read(settings), same(StickReading.idle));
+    expect(silent.any(settings), isFalse);
+  });
+
+  test('an unknown input setting falls back on auto', () async {
+    final settings = await settingsWith({'input': 'joystick'});
+    expect(settings.input, InputMode.auto);
+    await settings.update(input: InputMode.touch);
+    expect(settings.input, InputMode.touch);
   });
 
   test('the H12 settings keep three channels and fall back on junk', () async {

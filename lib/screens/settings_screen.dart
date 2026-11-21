@@ -132,10 +132,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               : t('speed_max', {'v': (limits[0] * share).toStringAsFixed(2)}),
         ),
         _switch(t('deadman'), _settings.deadman, (value) => _settings.update(deadman: value)),
-        _switch(
-          t('touch_sticks'),
-          _settings.touchSticks,
-          (value) => _settings.update(touchSticks: value),
+        _choice(
+          t('input'),
+          SegmentedButton<InputMode>(
+            segments: [
+              for (final mode in InputMode.values)
+                ButtonSegment(value: mode, label: Text(t('input_${mode.name}'))),
+            ],
+            selected: {_settings.input},
+            showSelectedIcon: false,
+            expandedInsets: EdgeInsets.zero,
+            onSelectionChanged: (selection) => _settings.update(input: selection.first),
+          ),
+          hint: t('input_hint_${_settings.input.name}'),
         ),
         _section(t('h12_sticks')),
         _h12Mapping(),
@@ -380,7 +389,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Text(
           skydroid.available
               ? t('h12_state', {'state': skydroid.state.isEmpty ? '…' : skydroid.state})
-              : t('h12_none'),
+              : t(skydroid.device == 'none' ? 'h12_none' : 'h12_not_here'),
           style: Txt.small,
         ),
         for (final (key, i) in rows)

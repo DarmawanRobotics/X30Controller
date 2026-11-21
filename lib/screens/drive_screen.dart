@@ -644,14 +644,14 @@ class _DriveScreenState extends State<DriveScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (!_skydroidLive && !s.gamepad.connected && !s.settings.touchSticks)
+              if (!s.sticks.any(s.settings))
                 IgnorePointer(
                   key: const ValueKey('no-gamepad'),
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: ToastView(
                       toast: Toast(
-                        s.t('no_gamepad'),
+                        s.t(s.settings.input == InputMode.h12 ? 'no_h12' : 'no_gamepad'),
                         color: Palette.caution,
                         icon: Icons.videogame_asset_off_rounded,
                       ),
@@ -709,8 +709,8 @@ class _DriveScreenState extends State<DriveScreen> {
     );
   }
 
-  /// The touch sticks drive: no H12 sticks, no gamepad, and the setting on.
-  bool get _touchSticks => s.settings.touchSticks && !_skydroidLive && !s.gamepad.connected;
+  /// The touch sticks drive: chosen, or in auto without the H12's sticks and a gamepad.
+  bool get _touchSticks => s.sticks.showTouch(s.settings);
 
   Widget _topBar() {
     final state = client.state;

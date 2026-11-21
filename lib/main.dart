@@ -25,7 +25,12 @@ Future<void> main() async {
     gamepad: GamepadInput()..start(),
     video: WebRtcVideo(),
   );
-  unawaited(services.skydroid.start()); // the H12's own sticks, when the SDK is built in
+  // the H12's own sticks, when the SDK is built in and this is a Skydroid handheld; chosen in the
+  // settings, also when the SDK does not know the handheld's model
+  void startSkydroid() =>
+      unawaited(services.skydroid.start(force: services.settings.input == InputMode.h12));
+  startSkydroid();
+  services.settings.addListener(startSkydroid);
   runApp(TeleopApp(services: services));
 }
 

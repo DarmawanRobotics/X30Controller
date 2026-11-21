@@ -9,6 +9,10 @@ import 'net/discovery.dart';
 import 'net/teleop_client.dart';
 import 'net/webrtc_video.dart';
 
+/// Which sticks drive the robot: the first live of the H12's, a gamepad and the touch sticks, or
+/// only one of them (a phone or tablet: [touch]).
+enum InputMode { auto, h12, gamepad, touch }
+
 /// Handheld settings, kept on the device. The connection part is hidden behind three taps on
 /// the version; the rest is under the gear while driving.
 class AppSettings extends ChangeNotifier {
@@ -60,8 +64,11 @@ class AppSettings extends ChangeNotifier {
   /// Speed level 1..3, see [speedScale].
   int get gear => _gear(_prefs.getInt('gear') ?? 1);
 
-  /// Sticks on the touch screen when neither the H12's sticks nor a gamepad are there.
-  bool get touchSticks => _prefs.getBool('touch_sticks') ?? true;
+  /// Which sticks drive: [InputMode.auto] takes the H12's, else a gamepad, else the touch sticks.
+  InputMode get input => InputMode.values.firstWhere(
+    (mode) => mode.name == _prefs.getString('input'),
+    orElse: () => InputMode.auto,
+  );
 
   /// The H12 channels (1-based) of forward, right and turn right; the H12's left stick drives
   /// and strafes, its right stick turns.
@@ -94,7 +101,7 @@ class AppSettings extends ChangeNotifier {
     bool? showTrip,
     double? stopDwell,
     int? gear,
-    bool? touchSticks,
+    InputMode? input,
     List<int>? h12Channels,
     List<bool>? h12Invert,
   }) async {
@@ -113,7 +120,7 @@ class AppSettings extends ChangeNotifier {
       if (showTrip != null) _prefs.setBool('show_trip', showTrip),
       if (stopDwell != null) _prefs.setDouble('dwell', stopDwell),
       if (gear != null) _prefs.setInt('gear', _gear(gear)),
-      if (touchSticks != null) _prefs.setBool('touch_sticks', touchSticks),
+      if (input != null) _prefs.setString('input', input.name),
       if (h12Channels != null && h12Channels.length == 3)
         _prefs.setString('h12_channels', h12Channels.join(',')),
       if (h12Invert != null && h12Invert.length == 3)

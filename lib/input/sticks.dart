@@ -27,8 +27,8 @@ class StickReading {
 }
 
 /// The drive sticks of the handheld: the Skydroid H12's own (through its SDK), a gamepad (a
-/// Retroid, any Bluetooth pad), or the touch sticks on the screen, in that order: the first that
-/// is live drives.
+/// Retroid, any Bluetooth pad), or the touch sticks on the screen. In [InputMode.auto] the first
+/// that is live drives, in that order; otherwise only the one chosen in the settings.
 class Sticks extends ChangeNotifier {
   Sticks({required this.skydroid, required this.gamepad});
 
@@ -48,12 +48,33 @@ class Sticks extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Something can drive: the H12's sticks, a gamepad, or the touch sticks when shown.
-  bool any(AppSettings settings) => skydroid.live || gamepad.connected || settings.touchSticks;
+  /// The source that drives now, under the input chosen in [settings]; none when the chosen
+  /// sticks are not there.
+  StickSource source(AppSettings settings) {
+    switch (settings.input) {
+      case InputMode.h12:
+        return skydroid.live ? StickSource.skydroid : StickSource.none;
+      case InputMode.gamepad:
+        return gamepad.connected ? StickSource.gamepad : StickSource.none;
+      case InputMode.touch:
+        return StickSource.touch;
+      case InputMode.auto:
+        if (skydroid.live) return StickSource.skydroid;
+        if (gamepad.connected) return StickSource.gamepad;
+        return StickSource.touch;
+    }
+  }
 
-  /// The command of the live source now.
+  /// Something can drive.
+  bool any(AppSettings settings) => source(settings) != StickSource.none;
+
+  /// The touch sticks are on the screen.
+  bool showTouch(AppSettings settings) => source(settings) == StickSource.touch;
+
+  /// The command of the source that drives now.
   StickReading read(AppSettings settings) {
-    if (skydroid.live) {
+    final from = source(settings);
+    if (from == StickSource.skydroid) {
       final map = settings.h12Channels;
       final invert = settings.h12Invert;
       return StickReading(
@@ -63,7 +84,7 @@ class Sticks extends ChangeNotifier {
         GamepadInput.shaped(skydroid.axis(map[2], invert: invert[2])),
       );
     }
-    if (gamepad.connected) {
+    if (from == StickSource.gamepad) {
       return StickReading(
         StickSource.gamepad,
         GamepadInput.shaped(gamepad.axis(GamepadAxis.leftStickY)),
@@ -72,7 +93,7 @@ class Sticks extends ChangeNotifier {
         hold: !settings.deadman || gamepad.pressed(GamepadButton.rightBumper),
       );
     }
-    if (settings.touchSticks) {
+    if (from == StickSource.touch) {
       return StickReading(
         StickSource.touch,
         GamepadInput.shaped(_left.dy, 0.08),
