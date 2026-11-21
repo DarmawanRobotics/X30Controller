@@ -138,8 +138,12 @@ Push a tag `v<version>`, the version in `pubspec.yaml`, to publish a GitHub Rele
 (`.github/workflows/release.yml`):
 
 ```bash
-git tag v1.0.0 && git push origin v1.0.0
+git switch main && git pull && git tag v1.0.1 && git push origin v1.0.1
 ```
+
+Tag `main` after the last pull request is merged: the release builds exactly the tagged commit.
+`v1.0.0` was tagged before Skydroid's SDK was in the build and does not read the H12's sticks; use
+`v1.0.1` or later.
 
 The APK is signed with the release key when the repository has these secrets, so a new release
 installs over the old one: `ANDROID_KEYSTORE_BASE64` (the keystore, base64),
