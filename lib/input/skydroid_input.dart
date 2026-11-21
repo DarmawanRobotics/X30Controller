@@ -36,8 +36,12 @@ class SkydroidInput extends ChangeNotifier {
   final _levels = StreamController<int>.broadcast();
   DateTime _last = DateTime.fromMillisecondsSinceEpoch(0);
 
-  /// This build has Skydroid's SDK.
+  /// This build has Skydroid's SDK and runs on a Skydroid handheld.
   bool available = false;
+
+  /// The handheld the SDK found: H12, H12Pro, H16, ...; UNKNOWN on any other device (a phone, a
+  /// tablet); none without the SDK in the build.
+  String device = 'none';
 
   /// The SDK's link to the handheld's controls: connecting, connected, failed: ..., disconnected.
   String state = '';
@@ -54,16 +58,24 @@ class SkydroidInput extends ChangeNotifier {
   /// Channel values arrived in the last half second.
   bool get live => DateTime.now().difference(_last) < const Duration(milliseconds: 500);
 
-  Future<void> start() async {
+  bool _forced = false;
+
+  /// Read the handheld's sticks when this is a Skydroid handheld. [force]: also when the SDK does
+  /// not recognize the model (the H12's sticks chosen in the settings); never without the SDK.
+  Future<void> start({bool force = false}) async {
     try {
       available = await _methods.invokeMethod<bool>('available') ?? false;
+      device = await _methods.invokeMethod<String>('device') ?? 'none';
     } on PlatformException {
       available = false;
     } on MissingPluginException {
       available = false; // tests, desktop: no Android side
     }
-    if (!available) return;
-    _subscription ??= _events.receiveBroadcastStream().listen(
+    if (!available && !(force && device != 'none')) return;
+    if (_subscription != null && (_forced || !force)) return;
+    await _subscription?.cancel();
+    _forced = force;
+    _subscription = _events.receiveBroadcastStream({'force': force}).listen(
       onEvent,
       onError: (Object error) {
         state = 'error: $error';

@@ -27,6 +27,7 @@ class MainActivity : FlutterActivity(), GamepadsCompatibleActivity {
         MethodChannel(messenger, "x30/skydroid").setMethodCallHandler { call, result ->
             when (call.method) {
                 "available" -> result.success(SkydroidSticks.available())
+                "device" -> result.success(SkydroidSticks.device())
                 else -> result.notImplemented()
             }
         }
@@ -34,6 +35,8 @@ class MainActivity : FlutterActivity(), GamepadsCompatibleActivity {
         EventChannel(messenger, "x30/skydroid/channels").setStreamHandler(
             object : EventChannel.StreamHandler {
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
+                    // force: the H12's sticks chosen in the settings, whatever the model says
+                    val force = (arguments as? Map<*, *>)?.get("force") == true
                     sticks.start(object : SkydroidSticks.Listener {
                         override fun onChannels(channels: IntArray) {
                             events.success(channels.toList())
@@ -42,7 +45,7 @@ class MainActivity : FlutterActivity(), GamepadsCompatibleActivity {
                         override fun onState(state: String) {
                             events.success(state)
                         }
-                    })
+                    }, force)
                 }
 
                 override fun onCancel(arguments: Any?) {

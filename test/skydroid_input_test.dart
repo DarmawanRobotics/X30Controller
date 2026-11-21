@@ -48,4 +48,13 @@ void main() {
     expect(input.live, isFalse);
     expect(SkydroidInput.levelOf(const [1500]), isNull);
   });
+
+  test('without the Android side (tests, desktop) nothing starts', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final input = SkydroidInput();
+    await input.start(force: true);
+    expect(input.available, isFalse);
+    expect(input.device, 'none');
+    expect(input.live, isFalse);
+  });
 }
